@@ -1,9 +1,22 @@
 pipeline {
   agent any
   stages {
-    stage('Hello') {
+    stage('Setup') {
       steps {
-        echo "Pipeline from Git"
+        sh '''
+        python3 -m venv venv
+        source venv/bin/activate
+        pip install -r requirements.txt
+        '''
+      }
+    }
+    stage('Migrate & Collect Static') {
+      steps {
+        sh '''
+        source venv/bin/activate
+        python manage.py migrate
+        python manage.py collectstatic --noinput
+        '''
       }
     }
   }

@@ -1,64 +1,37 @@
 pipeline {
     agent any
 
-    environment {
-        VENV_DIR = "venv"
-        PYTHON = "${env.WORKSPACE}/venv/bin/python"
-        PIP = "${env.WORKSPACE}/venv/bin/pip"
-    }
-
     stages {
 
-        stage('Setup Python Environment') {
+        stage('Checkout') {
             steps {
-                sh '''
-                # Create virtual environment if it doesn't exist
-                if [ ! -d "${VENV_DIR}" ]; then
-                    python3 -m venv ${VENV_DIR}
-                fi
-
-                # Upgrade pip and install requirements
-                ${PIP} install --upgrade pip
-                ${PIP} install -r requirements.txt
-                '''
+                git branch: 'main', url: 'https://github.com/kcsangit/usermanagement'
             }
         }
 
-        stage('Migrate Database') {
+        stage('Build Docker Image') {
             steps {
-                sh '''
-                # Run Django migrations
-                ${PYTHON} manage.py migrate
-                '''
+                sh 'docker build -t django-app .'
             }
         }
 
-        stage('Collect Static Files') {
+        stage('Run with Docker Compose') {
             steps {
-                sh '''
-                # Collect static files
-                ${PYTHON} manage.py collectstatic --noinput
-                '''
+                sh 'docker compose up -d --build'
             }
         }
 
         stage('Run Tests') {
             steps {
-                sh '''
-                # Run Django tests
-                ${PYTHON} manage.py test
-                '''
+                sh 'docker exec django_app python manage.py test'
             }
         }
 
     }
 
     post {
-        success {
-            echo 'Pipeline completed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed. Check the logs.'
+        always {
+            sh 'docker compose down'
         }
     }
 }

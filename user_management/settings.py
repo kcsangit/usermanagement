@@ -125,6 +125,7 @@ DOCS_URL = '/docs/'
 
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 DOCS_ROOT = os.path.join((BASE_DIR), "docs", "build", "html")
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 
 # Default primary key field type

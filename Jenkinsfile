@@ -12,12 +12,14 @@ pipeline {
 
     stages {
 
+        // 1️⃣ Checkout code from GitHub (master branch)
         stage('Checkout Code') {
             steps {
-                git branch: 'master', url: 'https://github.com/kcsangit/usermanagement'
+                git branch: 'master', url: 'https://github.com/kcsangit/usermanagement.git'
             }
         }
 
+        // 2️⃣ Inject .env secret file from Jenkins credentials
         stage('Inject .env Secret') {
             steps {
                 withCredentials([file(credentialsId: 'django-env', variable: 'ENVFILE')]) {
@@ -27,6 +29,7 @@ pipeline {
             }
         }
 
+        // 3️⃣ Build Docker image
         stage('Build Docker Image') {
             steps {
                 sh """
@@ -35,15 +38,19 @@ pipeline {
             }
         }
 
+        // 4️⃣ Login to AWS ECR using AWS credentials plugin
         stage('Login to AWS ECR') {
             steps {
-                sh """
-                aws ecr get-login-password --region ${AWS_REGION} \
-                | docker login --username AWS --password-stdin ${ECR_REGISTRY}
-                """
+                withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
+                    sh """
+                    aws ecr get-login-password --region ${AWS_REGION} \
+                    | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+                    """
+                }
             }
         }
 
+        // 5️⃣ Push Docker image to AWS ECR
         stage('Push Image to ECR') {
             steps {
                 sh """
@@ -52,6 +59,7 @@ pipeline {
             }
         }
 
+        // 6️⃣ Deploy container on EC2
         stage('Deploy on EC2') {
             steps {
                 sh """
@@ -74,11 +82,8 @@ pipeline {
 
     post {
         success {
-            echo "🎉 Deployment Successful"
+            echo "\U0001f389 Deployment Successful"
         }
         failure {
-            echo "❌ Deployment Failed"
-        }
-    }
-}
+            echo "\u274c Deployment Failed"
 

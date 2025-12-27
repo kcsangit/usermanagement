@@ -21,9 +21,9 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'django-env', variable: 'ENVFILE')]) {
                     sh """
-                    mkdir -p $WORKSPACE/tmp_env
-                    cp $ENVFILE $WORKSPACE/tmp_env/.env
-                    cp $WORKSPACE/tmp_env/.env $WORKSPACE/.env
+                    mkdir -p "\$WORKSPACE/tmp_env"
+                    cp "\$ENVFILE" "\$WORKSPACE/tmp_env/.env"
+                    cp "\$WORKSPACE/tmp_env/.env" "\$WORKSPACE/.env"
                     echo '.env loaded'
                     """
                 }
@@ -58,11 +58,11 @@ pipeline {
             }
         }
 
-        stage('Deploy on EC2') {
+        stage('Deploy with Docker Compose') {
             steps {
                 sh """
                 docker-compose down || true
-                docker-compose pull web
+                docker-compose pull
                 docker-compose up -d
                 """
             }

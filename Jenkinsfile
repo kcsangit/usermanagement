@@ -19,12 +19,15 @@ pipeline {
             }
         }
 
-        // 2️⃣ Inject .env secret file into Jenkins workspace
+        // 2️⃣ Inject .env secret safely into workspace
         stage('Inject .env Secret') {
             steps {
                 withCredentials([file(credentialsId: 'django-env', variable: 'ENVFILE')]) {
-                    sh 'cp $ENVFILE $WORKSPACE/.env'
-                    sh 'echo ".env loaded in workspace"'
+                    sh '''
+                    mkdir -p $WORKSPACE/tmp_env
+                    cp $ENVFILE $WORKSPACE/tmp_env/.env
+                    echo ".env loaded in $WORKSPACE/tmp_env"
+                    '''
                 }
             }
         }
@@ -38,7 +41,7 @@ pipeline {
             }
         }
 
-        // 4️⃣ Login to AWS ECR using AWS credentials plugin
+        // 4️⃣ Login to AWS ECR using AWS Credentials plugin
         stage('Login to AWS ECR') {
             steps {
                 withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
@@ -59,20 +62,20 @@ pipeline {
             }
         }
 
-        // 6️⃣ Deploy container on EC2 using workspace .env
+        // 6️⃣ Deploy container on EC2
         stage('Deploy on EC2') {
             steps {
                 sh """
-                echo "Stopping old container if exists"
+                echo "Stopping old container if exists..."
                 docker stop ${CONTAINER_NAME} || true
                 docker rm ${CONTAINER_NAME} || true
 
-                echo "Pulling latest image"
+                echo "Pulling latest image..."
                 docker pull ${IMAGE}:latest
 
-                echo "Starting new container"
+                echo "Starting new container..."
                 docker run -d --name ${CONTAINER_NAME} \
-                    --env-file $WORKSPACE/.env \
+                    --env-file $WORKSPACE/tmp_env/.env \
                     -p ${PORT}:8000 \
                     ${IMAGE}:latest
                 """
@@ -82,10 +85,10 @@ pipeline {
 
     post {
         success {
-            echo "Deployment Successful"
+            echo "🎉 Deployment Successful"
         }
         failure {
-            echo "Deployment Failed"
+            echo "❌ Deployment Failed"
         }
     }
 }

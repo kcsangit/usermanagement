@@ -19,12 +19,12 @@ pipeline {
             }
         }
 
-        // 2️⃣ Inject .env secret file from Jenkins credentials
+        // 2️⃣ Inject .env secret file into Jenkins workspace
         stage('Inject .env Secret') {
             steps {
                 withCredentials([file(credentialsId: 'django-env', variable: 'ENVFILE')]) {
-                    sh 'cp $ENVFILE .env'
-                    sh 'echo ".env loaded"'
+                    sh 'cp $ENVFILE $WORKSPACE/.env'
+                    sh 'echo ".env loaded in workspace"'
                 }
             }
         }
@@ -59,7 +59,7 @@ pipeline {
             }
         }
 
-        // 6️⃣ Deploy container on EC2
+        // 6️⃣ Deploy container on EC2 using workspace .env
         stage('Deploy on EC2') {
             steps {
                 sh """
@@ -72,7 +72,7 @@ pipeline {
 
                 echo "Starting new container"
                 docker run -d --name ${CONTAINER_NAME} \
-                    --env-file .env \
+                    --env-file $WORKSPACE/.env \
                     -p ${PORT}:8000 \
                     ${IMAGE}:latest
                 """

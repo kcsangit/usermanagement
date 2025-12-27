@@ -82,10 +82,10 @@ pipeline {
 
     post {
         success {
-            echo "\U0001f389 Deployment Successful"
+            echo "Deployment Successful"
         }
         failure {
-            echo "\u274c Deployment Failed"
+            echo "Deployment Failed"
         }
     }
 }

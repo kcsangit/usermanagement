@@ -86,4 +86,7 @@ pipeline {
         }
         failure {
             echo "\u274c Deployment Failed"
+        }
+    }
+}
 

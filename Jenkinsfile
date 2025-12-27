@@ -6,34 +6,30 @@ pipeline {
         ECR_REGISTRY = "321869098564.dkr.ecr.ap-south-1.amazonaws.com"
         ECR_REPOSITORY = "usermanagement"
         IMAGE = "${ECR_REGISTRY}/${ECR_REPOSITORY}"
-        CONTAINER_NAME = "django_app"
         PORT = "8000"
     }
 
     stages {
 
-        // 1️⃣ Checkout code from GitHub (master branch)
         stage('Checkout Code') {
             steps {
                 git branch: 'master', url: 'https://github.com/kcsangit/usermanagement.git'
             }
         }
 
-        // 2️⃣ Inject .env secret file into workspace
         stage('Inject .env Secret') {
             steps {
-                dir("${WORKSPACE}") {
-                    withCredentials([file(credentialsId: 'django-env', variable: 'ENVFILE')]) {
-                        sh '''
-                        cp $ENVFILE .env
-                        echo ".env loaded in workspace"
-                        '''
-                    }
+                withCredentials([file(credentialsId: 'django-env', variable: 'ENVFILE')]) {
+                    sh """
+                    mkdir -p $WORKSPACE/tmp_env
+                    cp $ENVFILE $WORKSPACE/tmp_env/.env
+                    cp $WORKSPACE/tmp_env/.env $WORKSPACE/.env
+                    echo '.env loaded'
+                    """
                 }
             }
         }
 
-        // 3️⃣ Build Docker image
         stage('Build Docker Image') {
             steps {
                 sh """
@@ -42,10 +38,9 @@ pipeline {
             }
         }
 
-        // 4️⃣ Login to AWS ECR using AWS CLI credentials
         stage('Login to AWS ECR') {
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
+                withCredentials([usernamePassword(credentialsId: 'aws-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh """
                     aws ecr get-login-password --region ${AWS_REGION} \
                     | docker login --username AWS --password-stdin ${ECR_REGISTRY}
@@ -54,31 +49,21 @@ pipeline {
             }
         }
 
-        // 5️⃣ Push Docker image to AWS ECR
         stage('Push Image to ECR') {
             steps {
                 sh """
+                docker tag ${IMAGE}:latest ${IMAGE}:latest
                 docker push ${IMAGE}:latest
                 """
             }
         }
 
-        // 6️⃣ Deploy container on EC2 using workspace .env
         stage('Deploy on EC2') {
             steps {
                 sh """
-                echo "Stopping old container if exists"
-                docker stop ${CONTAINER_NAME} || true
-                docker rm ${CONTAINER_NAME} || true
-
-                echo "Pulling latest image"
-                docker pull ${IMAGE}:latest
-
-                echo "Starting new container"
-                docker run -d --name ${CONTAINER_NAME} \
-                    --env-file ${WORKSPACE}/.env \
-                    -p ${PORT}:8000 \
-                    ${IMAGE}:latest
+                docker-compose down || true
+                docker-compose pull web
+                docker-compose up -d
                 """
             }
         }
